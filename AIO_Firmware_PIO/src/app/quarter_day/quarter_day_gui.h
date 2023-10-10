@@ -1,0 +1,4 @@
+#ifndef APP_QUARTER_DAY_GUI_H
+#define APP_QUARTER_DAY_GUI_H
+
+#endif
