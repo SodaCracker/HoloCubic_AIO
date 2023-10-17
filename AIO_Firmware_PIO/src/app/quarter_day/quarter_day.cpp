@@ -2,6 +2,7 @@
 #include "ESP32Time.h"
 #include "network.h"
 #include "sys/app_controller.h"
+#include "quarter_day_gui.h"
 
 #define QUARTER_DAY_NAME "Quarter Day"
 #define TIME_API "http://worldtimeapi.org/api/timezone/"
@@ -10,6 +11,9 @@ static String timezones[] = {"Asia/Shanghai", "Europe/Stockholm"};
 
 struct RuneTimeData
 {
+    long long prev_local_time;
+    long long prev_net_time;
+    ESP32Time rtc;
 };
 static RuneTimeData *runtime_data;
 
@@ -47,7 +51,11 @@ static void quarter_day_message_handle(const char *from, const char *to, APP_MES
     {
     case APP_MESSAGE_WIFI_CONN:
     {
-        // todo
+        Serial.println("wifi connected");
+        int evt_id = (int)message;
+        switch (evt_id)
+        {
+        }
     }
     break;
     case APP_MESSAGE_WIFI_DISCONN:
@@ -100,7 +108,22 @@ static void quarter_day_message_handle(const char *from, const char *to, APP_MES
     }
 }
 
-static ESP32Time get_timestamp(String timezone)
+static void rtc_update(ESP32Time time)
+{
+    if (time.getTime() == 0)
+    {
+        runtime_data->prev_net_time = runtime_data->prev_net_time + (GET_SYS_MILLIS() - runtime_data->prev_local_time);
+        runtime_data->prev_local_time = GET_SYS_MILLIS();
+        return;
+    }
+
+    struct DisplayInfo display_info;
+    runtime_data->rtc = time;
+    display_info.hour = time.getHour(true);
+    display_info.city_idx = 0;
+}
+
+static ESP32Time timestamp_get(String timezone)
 {
     ESP32Time time;
     if (WL_CONNECTED != WiFi.status())
@@ -115,7 +138,7 @@ static ESP32Time get_timestamp(String timezone)
     int http_code = http.GET();
     if (HTTP_CODE_OK == http_code)
     {
-        Serial.printf("[HTTP] GET WorldTime success\n");
+        Serial.printf("[HTTP] GET WorldTime success, timezone: {0}\n", timezone);
         String payload = http.getString();
         DynamicJsonDocument doc(512);
         deserializeJson(doc, payload);

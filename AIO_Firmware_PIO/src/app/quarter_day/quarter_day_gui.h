@@ -8,6 +8,10 @@ extern "C"
 
 #include "lvgl.h"
 
+#define ANIEND                      \
+    while (lv_anim_count_running()) \
+        lv_task_handler();
+
    struct DisplayInfo
     {
         int hour;
@@ -15,10 +19,12 @@ extern "C"
         int city_idx;
     };
 
-    extern const lv_img_dsc_t app_quarter_day;
-
     void quarter_day_gui_init(void);
-    void display_time(struct DisplayInfo displayInfo);
+    void quarter_day_gui_release(void);
+    void time_display(struct DisplayInfo display_info);
+    void time_display_init(lv_scr_load_anim_t anim_type);
+    
+    extern const lv_img_dsc_t app_quarter_day;
 
 #ifdef __cplusplus
 }
