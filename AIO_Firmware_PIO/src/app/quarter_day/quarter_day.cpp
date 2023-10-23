@@ -13,22 +13,51 @@ struct RuneTimeData
 {
     long long prev_local_time;
     long long prev_net_time;
+    unsigned int forced_update;
+    unsigned int update_type;
     ESP32Time rtc;
+    DisplayInfo display_info;
 };
 static RuneTimeData *runtime_data;
 
+enum UpdateType
+{
+    UPDATE_NTP,
+    UPDATE_DAILY,
+};
+
 static int quarter_day_init(AppController *sys)
 {
+    tft->setSwapBytes(true);
+    quarter_day_gui_init();
+    
+    runtime_data = (RuneTimeData *)calloc(1, sizeof(RuneTimeData));
+    memset((char *)&runtime_data->display_info, 0, sizeof(DisplayInfo));
+
+    runtime_data->prev_local_time = GET_SYS_MILLIS();
+    runtime_data->prev_net_time = GET_SYS_MILLIS();
+
+    runtime_data->forced_update = 0x01;
+    runtime_data->update_type = 0x00;
+
     return 0;
 }
 
 static void quarter_day_process(AppController *sys, const ImuAction *act_info)
 {
+    lv_scr_load_anim_t anim_type = LV_SCR_LOAD_ANIM_NONE;
+
     if (RETURN == act_info->active)
     {
         sys->app_exit(); // 退出APP
         return;
     }
+
+    if (SHAKE == act_info->active)
+    {
+        runtime_data->forced_update &= ~0x01;
+    }
+    
 }
 
 static void quarter_day_background_task(AppController *sys, const ImuAction *act_info)
