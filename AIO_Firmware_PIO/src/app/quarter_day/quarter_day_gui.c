@@ -32,7 +32,7 @@ void time_display(struct DisplayInfo display_info)
 {
     time_display_init(LV_SCR_LOAD_ANIM_NONE);
     lv_label_set_text_fmt(time_label, "%d:%d", display_info.hour, display_info.minute);
-    lv_label_set_text_fmt(city_label, "%s", 0 == display_info.city_idx ? &city_names[0] : &city_names[1]);
+    lv_label_set_text(city_label, display_info.city_name);
     return;
 }
 

@@ -16,7 +16,7 @@ extern "C"
     {
         int hour;
         int minute;
-        int city_idx;
+        char *city_name;
     };
 
     void quarter_day_gui_init(void);

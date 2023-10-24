@@ -6,11 +6,13 @@
 
 #define QUARTER_DAY_NAME "Quarter Day"
 #define TIME_API "http://worldtimeapi.org/api/timezone/"
+#define CITY_SIZE 2
 
 static String timezones[] = {"Asia/Shanghai", "Europe/Stockholm"};
 
 struct RuneTimeData
 {
+    unsigned int city_idx;
     long long prev_local_time;
     long long prev_net_time;
     unsigned int forced_update;
@@ -18,7 +20,7 @@ struct RuneTimeData
     ESP32Time rtc;
     DisplayInfo display_info;
 };
-static RuneTimeData *runtime_data;
+static RuneTimeData *runtime_data = NULL;
 
 enum UpdateType
 {
@@ -30,9 +32,11 @@ static int quarter_day_init(AppController *sys)
 {
     tft->setSwapBytes(true);
     quarter_day_gui_init();
-    
+
     runtime_data = (RuneTimeData *)calloc(1, sizeof(RuneTimeData));
     memset((char *)&runtime_data->display_info, 0, sizeof(DisplayInfo));
+
+    runtime_data->city_idx = 0x00;
 
     runtime_data->prev_local_time = GET_SYS_MILLIS();
     runtime_data->prev_net_time = GET_SYS_MILLIS();
@@ -53,11 +57,24 @@ static void quarter_day_process(AppController *sys, const ImuAction *act_info)
         return;
     }
 
-    if (SHAKE == act_info->active)
+    if (GO_FORWORD == act_info->active)
     {
-        runtime_data->forced_update &= ~0x01;
+        runtime_data->forced_update = 0x01;
+        delay(500);
     }
-    
+    else if (SHAKE == act_info->active)
+    {
+        anim_type = LV_SCR_LOAD_ANIM_FADE_IN;
+        runtime_data->forced_update = 0x01;
+        runtime_data->city_idx = (runtime_data->city_idx + 1) % CITY_SIZE;
+        delay(500);
+    }
+
+    time_display(runtime_data->display_info);
+    // if (0x01 == runtime_data->forced_update || doDelayMillisTime(cfg))
+    // {
+    //     /* code */
+    // }
 }
 
 static void quarter_day_background_task(AppController *sys, const ImuAction *act_info)
@@ -149,7 +166,7 @@ static void rtc_update(ESP32Time time)
     struct DisplayInfo display_info;
     runtime_data->rtc = time;
     display_info.hour = time.getHour(true);
-    display_info.city_idx = 0;
+    // display_info.city_name = runtime_data->city_idx == 0x00 ? "Shanghai" : "Stockholm";
 }
 
 static ESP32Time timestamp_get(String timezone)
