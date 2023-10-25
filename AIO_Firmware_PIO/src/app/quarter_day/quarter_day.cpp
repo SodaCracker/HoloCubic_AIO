@@ -7,26 +7,79 @@
 #define QUARTER_DAY_NAME "Quarter Day"
 #define TIME_API "http://worldtimeapi.org/api/timezone/"
 #define CITY_SIZE 2
+#define TIME_UPDATE_INTERVAL 900000
 
-static String timezones[] = {"Asia/Shanghai", "Europe/Stockholm"};
+static char *timezones[] = {"Asia/Shanghai", "Europe/Stockholm"};
+static char *city_names[] = {"Shanghai", "Stockholm"};
 
 struct RuneTimeData
 {
-    unsigned int city_idx;
+    int city_idx;
+    unsigned long prev_time;
     long long prev_local_time;
     long long prev_net_time;
     unsigned int forced_update;
     unsigned int update_type;
     ESP32Time rtc;
     DisplayInfo display_info;
+
+    BaseType_t xReturned_task_update; // 更新数据的异步任务
+    TaskHandle_t xHandle_task_update; // 更新数据的异步任务
 };
 static RuneTimeData *runtime_data = NULL;
 
 enum UpdateType
 {
     UPDATE_NTP,
-    UPDATE_DAILY,
 };
+
+static void rtc_update(ESP32Time time)
+{
+    if (time.getTime() == 0)
+    {
+        runtime_data->prev_net_time = runtime_data->prev_net_time + (GET_SYS_MILLIS() - runtime_data->prev_local_time);
+        runtime_data->prev_local_time = GET_SYS_MILLIS();
+        return;
+    }
+
+    runtime_data->rtc = time;
+    runtime_data->display_info.hour = time.getHour(true);
+    runtime_data->display_info.minute = time.getMinute();
+    runtime_data->display_info.city_name = city_names[runtime_data->city_idx];
+}
+
+static ESP32Time timestamp_get(int city_idx)
+{
+    ESP32Time time;
+    if (WL_CONNECTED != WiFi.status())
+    {
+        return time;
+    }
+
+    HTTPClient http;
+    http.setTimeout(1000);
+    String api = TIME_API + String(timezones[city_idx]);
+    http.begin(api);
+
+    int http_code = http.GET();
+    if (HTTP_CODE_OK == http_code)
+    {
+        Serial.printf("[HTTP] GET WorldTime success, timezone: {0}\n", timezones[city_idx]);
+        String payload = http.getString();
+        DynamicJsonDocument doc(512);
+        deserializeJson(doc, payload);
+
+        int unixtime = doc["unixtime"];
+        time.setTime(unixtime);
+
+        return time;
+    }
+    else
+    {
+        Serial.printf("[HTTP] GET WorldTime failed, error: %s\n", http.errorToString(http_code).c_str());
+        return time;
+    }
+}
 
 static int quarter_day_init(AppController *sys)
 {
@@ -70,19 +123,48 @@ static void quarter_day_process(AppController *sys, const ImuAction *act_info)
         delay(500);
     }
 
-    time_display(runtime_data->display_info);
-    // if (0x01 == runtime_data->forced_update || doDelayMillisTime(cfg))
-    // {
-    //     /* code */
-    // }
+    if (0x01 == runtime_data->forced_update || doDelayMillisTime(TIME_UPDATE_INTERVAL, &runtime_data->prev_time, false))
+    {
+        // 尝试同步网络时钟
+        sys->send_to(QUARTER_DAY_NAME, CTRL_NAME, APP_MESSAGE_WIFI_CONN, (void *)UPDATE_NTP, NULL);
+    }
+    else if (GET_SYS_MILLIS() - runtime_data->prev_local_time > 400)
+    {
+        rtc_update(timestamp_get(runtime_data->city_idx));
+        time_display(runtime_data->display_info);
+    }
+
+    runtime_data->forced_update = 0x00;
+    delay(30);
 }
 
 static void quarter_day_background_task(AppController *sys, const ImuAction *act_info)
 {
+    // 本函数为后台任务，主控制器会间隔一分钟调用此函数
+    // 本函数尽量只调用"常驻数据",其他变量可能会因为生命周期的缘故已经释放
+
+    // 发送请求。如果是wifi相关的消息，当请求完成后自动会调用 example_message_handle 函数
+    // sys->send_to(EXAMPLE_APP_NAME, CTRL_NAME,
+    //              APP_MESSAGE_WIFI_CONN, (void *)run_data->val1, NULL);
+
+    // 也可以移除自身的后台任务，放在本APP可控的地方最合适
+    // sys->remove_backgroud_task();
+
+    // 程序需要时可以适当加延时
+    // delay(300);量只调用常驻数据
 }
 
 static int quarter_day_exit_callback(void *param)
 {
+    quarter_day_gui_release();
+
+    // 查杀异步任务
+    if (pdPASS == runtime_data->xReturned_task_update)
+    {
+        vTaskDelete(runtime_data->xHandle_task_update);
+    }
+
+    // 释放运行数据
     if (NULL != runtime_data)
     {
         free(runtime_data);
@@ -91,113 +173,26 @@ static int quarter_day_exit_callback(void *param)
     return 0;
 }
 
-static void quarter_day_message_handle(const char *from, const char *to, APP_MESSAGE_TYPE type, void *message, void *ext_info)
+static void quarter_day_message_handle(const char *from, const char *to, APP_MESSAGE_TYPE msg_type, void *message, void *ext_info)
 {
-    switch (type)
+    switch (msg_type)
     {
     case APP_MESSAGE_WIFI_CONN:
     {
-        Serial.println("wifi connected");
+        Serial.println("wifi connected.\n");
         int evt_id = (int)message;
         switch (evt_id)
         {
+        case UPDATE_NTP:
+        {
+            Serial.println("update ntp.\n");
+            rtc_update(timestamp_get(runtime_data->city_idx));
+            time_display(runtime_data->display_info);
+        }
+        break;
         }
     }
     break;
-    case APP_MESSAGE_WIFI_DISCONN:
-    {
-        // todo
-    }
-    break;
-    case APP_MESSAGE_WIFI_AP:
-    {
-        // todo
-    }
-    break;
-    case APP_MESSAGE_WIFI_ALIVE:
-    {
-        // todo
-    }
-    break;
-    case APP_MESSAGE_UPDATE_TIME:
-    {
-        // todo
-    }
-    break;
-    case APP_MESSAGE_MQTT_DATA:
-    {
-        // todo
-    }
-    break;
-    case APP_MESSAGE_GET_PARAM:
-    {
-        // todo
-    }
-    break;
-    case APP_MESSAGE_SET_PARAM:
-    {
-        // todo
-    }
-    break;
-    case APP_MESSAGE_READ_CFG:
-    {
-        // todo
-    }
-    break;
-    case APP_MESSAGE_WRITE_CFG:
-    {
-        // todo
-    }
-    break;
-    default:
-        break;
-    }
-}
-
-static void rtc_update(ESP32Time time)
-{
-    if (time.getTime() == 0)
-    {
-        runtime_data->prev_net_time = runtime_data->prev_net_time + (GET_SYS_MILLIS() - runtime_data->prev_local_time);
-        runtime_data->prev_local_time = GET_SYS_MILLIS();
-        return;
-    }
-
-    struct DisplayInfo display_info;
-    runtime_data->rtc = time;
-    display_info.hour = time.getHour(true);
-    // display_info.city_name = runtime_data->city_idx == 0x00 ? "Shanghai" : "Stockholm";
-}
-
-static ESP32Time timestamp_get(String timezone)
-{
-    ESP32Time time;
-    if (WL_CONNECTED != WiFi.status())
-    {
-        return time;
-    }
-
-    HTTPClient http;
-    http.setTimeout(1000);
-    http.begin(TIME_API + timezone);
-
-    int http_code = http.GET();
-    if (HTTP_CODE_OK == http_code)
-    {
-        Serial.printf("[HTTP] GET WorldTime success, timezone: {0}\n", timezone);
-        String payload = http.getString();
-        DynamicJsonDocument doc(512);
-        deserializeJson(doc, payload);
-
-        int unixtime = doc["unixtime"];
-        time.setTime(unixtime);
-
-        return time;
-    }
-    else
-    {
-        Serial.printf("[HTTP] GET WorldTime failed, error: %s\n", http.errorToString(http_code).c_str());
-        return time;
     }
 }
 

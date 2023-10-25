@@ -17,6 +17,12 @@
 #include "app/example/example.h"
 #endif
 
+// 六小时
+#define APP_QUARTER_DAY_USE 1
+#if APP_QUARTER_DAY_USE
+#include "app/quarter_day/quarter_day.h"
+#endif
+
 // 纪念日APP
 #define APP_ANNIVERSARY_USE 0
 #if APP_ANNIVERSARY_USE
@@ -30,7 +36,7 @@
 #endif
 
 // 文件管理器APP
-#define APP_FILE_MANAGER_USE 1
+#define APP_FILE_MANAGER_USE 0
 #if APP_FILE_MANAGER_USE
 #include "app/file_manager/file_manager.h"
 #endif
@@ -85,7 +91,7 @@
 #endif
 
 // 设置APP
-#define APP_SETTING_USE 1
+#define APP_SETTING_USE 0
 #if APP_SETTING_USE
 #include "app/settings/settings.h"
 #endif
@@ -98,7 +104,7 @@
 
 // 天气APP
 // 如flash空间不够，首选配置天气app二选一，腾出大量flash空间
-#define APP_WEATHER_USE 1
+#define APP_WEATHER_USE 0
 #if APP_WEATHER_USE
 #include "app/weather/weather.h"
 #endif

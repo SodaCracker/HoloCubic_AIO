@@ -8,8 +8,6 @@ static lv_obj_t *scr = NULL;
 static lv_obj_t *time_label;
 static lv_obj_t *city_label;
 
-static const char *city_names[2] = {"Lunds", "Shanghai"};
-
 void quarter_day_gui_init(void)
 {
     lv_style_init(&default_style);
