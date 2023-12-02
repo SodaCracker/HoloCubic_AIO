@@ -26,9 +26,9 @@ void jetlag_gui_release(void)
     }
 }
 
-void time_display(struct DisplayInfo display_info)
+void time_display(struct DisplayInfo display_info, lv_scr_load_anim_t anim_type)
 {
-    time_display_init(LV_SCR_LOAD_ANIM_NONE);
+    time_display_init(anim_type);
     lv_label_set_text_fmt(time_label, "%d:%d", display_info.hour, display_info.minute);
     lv_label_set_text(city_label, display_info.city_name);
     return;

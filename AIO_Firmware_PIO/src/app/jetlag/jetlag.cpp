@@ -3,14 +3,15 @@
 #include "network.h"
 #include "sys/app_controller.h"
 #include "jetlag_gui.h"
+#include "WString.h"
 
 #define JETLAG_NAME "Jet Lag"
 #define TIME_API "http://worldtimeapi.org/api/timezone/"
 #define CITY_SIZE 2
 #define TIME_UPDATE_INTERVAL 900000
 
-static char *timezones[] = {"Asia/Shanghai", "Europe/Stockholm"};
-static char *city_names[] = {"Shanghai", "Stockholm"};
+static const char timezones[2][32] = {"Asia/Shanghai", "Europe/Stockholm"};
+static const char city_names[2][16] = {"Shanghai", "Lund"};
 
 struct RuneTimeData
 {
@@ -26,7 +27,7 @@ struct RuneTimeData
     BaseType_t xReturned_task_update; // 更新数据的异步任务
     TaskHandle_t xHandle_task_update; // 更新数据的异步任务
 };
-static RuneTimeData *runtime_data = NULL;
+RuneTimeData *runtime_data = NULL;
 
 enum UpdateType
 {
@@ -45,7 +46,7 @@ static void rtc_update(ESP32Time time)
     runtime_data->rtc = time;
     runtime_data->display_info.hour = time.getHour(true);
     runtime_data->display_info.minute = time.getMinute();
-    runtime_data->display_info.city_name = city_names[runtime_data->city_idx];
+    strcpy(runtime_data->display_info.city_name, city_names[runtime_data->city_idx]);
 }
 
 static ESP32Time timestamp_get(int city_idx)
@@ -131,7 +132,7 @@ static void jetlag_process(AppController *sys, const ImuAction *act_info)
     else if (GET_SYS_MILLIS() - runtime_data->prev_local_time > 400)
     {
         rtc_update(timestamp_get(runtime_data->city_idx));
-        time_display(runtime_data->display_info);
+        time_display(runtime_data->display_info, anim_type);
     }
 
     runtime_data->forced_update = 0x00;
@@ -177,22 +178,20 @@ static void jetlag_message_handle(const char *from, const char *to, APP_MESSAGE_
 {
     switch (msg_type)
     {
-    case APP_MESSAGE_WIFI_CONN:
-    {
-        Serial.println("wifi connected.\n");
-        int evt_id = (int)message;
-        switch (evt_id)
+        case APP_MESSAGE_WIFI_CONN:
         {
-        case UPDATE_NTP:
-        {
-            Serial.println("update ntp.\n");
-            rtc_update(timestamp_get(runtime_data->city_idx));
-            time_display(runtime_data->display_info);
+            Serial.println("wifi connected.\n");
+            int evt_id = (int)message;
+            switch (evt_id)
+            {
+                case UPDATE_NTP:
+                Serial.println("update ntp.\n");
+                rtc_update(timestamp_get(runtime_data->city_idx));
+                time_display(runtime_data->display_info, LV_SCR_LOAD_ANIM_NONE);
+                break;
+            }
         }
         break;
-        }
-    }
-    break;
     }
 }
 
