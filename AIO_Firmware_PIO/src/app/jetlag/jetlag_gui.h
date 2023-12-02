@@ -1,5 +1,5 @@
-#ifndef APP_QUARTER_DAY_GUI_H
-#define APP_QUARTER_DAY_GUI_H
+#ifndef APP_JETLAG_GUI_H
+#define APP_JETLAG_GUI_H
 
 #ifdef __cplusplus
 extern "C"
@@ -19,8 +19,8 @@ extern "C"
         char *city_name;
     };
 
-    void quarter_day_gui_init(void);
-    void quarter_day_gui_release(void);
+    void jetlag_gui_init(void);
+    void jetlag_gui_release(void);
     void time_display(struct DisplayInfo display_info);
     void time_display_init(lv_scr_load_anim_t anim_type);
     

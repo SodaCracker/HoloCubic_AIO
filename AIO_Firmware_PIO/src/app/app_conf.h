@@ -17,10 +17,10 @@
 #include "app/example/example.h"
 #endif
 
-// 六小时
-#define APP_QUARTER_DAY_USE 1
-#if APP_QUARTER_DAY_USE
-#include "app/quarter_day/quarter_day.h"
+// 时差
+#define APP_JETLAG_USE 1
+#if APP_JETLAG_USE
+#include "app/jetlag/jetlag.h"
 #endif
 
 // 纪念日APP

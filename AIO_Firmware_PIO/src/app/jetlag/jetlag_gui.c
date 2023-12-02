@@ -1,4 +1,4 @@
-#include "quarter_day_gui.h"
+#include "jetlag_gui.h"
 
 static lv_style_t default_style;
 static lv_style_t time_sytle;
@@ -8,14 +8,14 @@ static lv_obj_t *scr = NULL;
 static lv_obj_t *time_label;
 static lv_obj_t *city_label;
 
-void quarter_day_gui_init(void)
+void jetlag_gui_init(void)
 {
     lv_style_init(&default_style);
     lv_style_init(&time_sytle);
     lv_style_init(&city_style);
 }
 
-void quarter_day_gui_release(void)
+void jetlag_gui_release(void)
 {
     if (NULL != scr)
     {
@@ -42,7 +42,7 @@ void time_display_init(lv_scr_load_anim_t anim_type)
         return;
     }
 
-    quarter_day_gui_release();
+    jetlag_gui_release();
     lv_obj_clean(act_obj);
 
     scr = lv_obj_create(NULL);
